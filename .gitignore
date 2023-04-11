@@ -1,0 +1,11 @@
+tools/
+
+*.bin
+*.lst
+*.txt
+*.8xp
+*.8XP
+*.83p
+*.83P
+
+spasm
