@@ -6,30 +6,32 @@
 .db t2ByteTok, tasmCmp
 .org $9D95
 
+; Ion header
     ret
     jr        nc, start
 	.db "Cannon War 1.0",0
 
+; Program start
 start:
     set       7, (iy + $14)
     ld        bc, $0302
     ld        (curRow), bc
 label_0067:
     ld        hl, $A01A
-    rst       28h
+    rst       28h				; bcall
     ld        a, (bc)
     ld        b, l
     ld        bc, $0404
     ld        (curRow), bc
     ld        hl, $A033
 label_0077:
-    rst       28h
+    rst       28h				; bcall
     ld        a, (bc)
     ld        b, l
     ld        bc, $0305
     ld        (curRow), bc
     ld        hl, $A03C
-    rst       28h
+    rst       28h				; bcall
     ld        a, (bc)
     ld        b, l
     call      $9FFE
@@ -52,7 +54,7 @@ label_0077:
     ld        bc, $001D
     ld        (penCol), bc
     ld        hl, $A01A
-    rst       28h
+    rst       28h				; bcall
     ld        h, c
     ld        b, l
     ld        b, $01
@@ -225,12 +227,12 @@ _:
     ld        bc, $0000
     ld        (penCol), bc
     ld        a, (ix + 06)
-    rst       28h
+    rst       28h				; bcall
     adc       a, h
     ld        b, a
     ld        a, 02
     push      ix
-    rst       28h
+    rst       28h				; bcall
     rst       30h
     ld        c, e
     pop       ix
@@ -239,12 +241,12 @@ _:
     ld        bc, $005B
     ld        (penCol), bc
     ld        a, (ix + 07)
-    rst       28h
+    rst       28h				; bcall
     adc       a, h
     ld        b, a
     ld        a, 02
     push      ix
-    rst       28h
+    rst       28h				; bcall
     rst       30h
     ld        c, e
     pop       ix
@@ -252,14 +254,14 @@ _:
     ld        bc, $0005
     ld        (penCol), bc
     ld        hl, $A025
-    rst       28h
+    rst       28h				; bcall
     ld        h, c
     ld        b, l
     jr        +_
     ld        bc, $0042
     ld        (penCol), bc
     ld        hl, $A02C
-    rst       28h
+    rst       28h				; bcall
     ld        h, c
     ld        b, l
     jr        +_
@@ -294,7 +296,7 @@ _:
     call      $9FD9
     call      $96CD
 _:
-    rst       28h
+    rst       28h				; bcall
     ld        (hl), d
     ld        c, c
     cp        09
