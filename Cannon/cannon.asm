@@ -1,6 +1,6 @@
 .nolist
-#include "../inc/ti83plus.inc"
-#include "../inc/ion.inc"
+#include "ti83plus.inc"
+#include "ion.inc"
 .list
 
 .db t2ByteTok, tasmCmp
