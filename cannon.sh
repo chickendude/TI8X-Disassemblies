@@ -13,8 +13,7 @@ STATUS=0
 [ `which md5sum` ] && echo "Check for md5sum: Exists." || STATUS=`expr $STATUS + 2`
 [ `which $EMU` ] && echo "Check for ${EMU}: Exists." || STATUS=`expr $STATUS + 4`
 if [ $STATUS -gt "0" ]; then
-    echo "The check came back with an error, exiting."
-    echo "Status: $STATUS"
+    echo "The check returned errorcode: $STATUS"
     exit $STATUS
 else
     echo "All checks fine, assemble and emulate!"
