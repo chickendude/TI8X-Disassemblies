@@ -58,23 +58,24 @@ start:
 
 ; Set up variables
 	ld ix, saferamp
-	ld (ix + p1_y), 8	; Player1's starting Y position
-	ld (ix + p2_y), 56	; Player2's starting Y position
-	ld (ix + p1_timer), $00	; Player1's laser timer
-	ld (ix + p2_timer), $00	; Player2's laser timer
+	ld (ix + p1_y), 8			; Player1's starting Y position
+	ld (ix + p2_y), 56			; Player2's starting Y position
+	ld (ix + p1_timer), $00		; Player1's laser timer
+	ld (ix + p2_timer), $00		; Player2's laser timer
 	ld (ix + p1_laser_y), $08	; Player1's laser Y position
 	ld (ix + p2_laser_y), $38	; Player2's laser Y position
-	ld (ix + p1_hp), 10 ; Player1 lives (starts at 10, but we dec 1 when displaying)
-	ld (ix + p2_hp), 10 ; Player2 lives
+	ld (ix + p1_hp), 10 		; Player1 lives (starts at 10, but we dec 1 when 
+								; .. displaying in [player1_hit])
+	ld (ix + p2_hp), 10 		; Player2 lives
 
-	ld bc, $001D		; y = 0, x = 29
-	ld (penCol), bc		; Store (pen/small) text coordinates
-	ld hl, title_txt	; Address of text to draw
-	bcall(_VPutS)		; Draw small text
-	ld b, 1				; Height
-	ld c, 12			; Width
-	ld l, 7				; Y=7
-	ld a, 0				; X=0
+	ld bc, $001D				; y = 0, x = 29
+	ld (penCol), bc				; Store (pen/small) text coordinates
+	ld hl, title_txt			; Address of text to draw
+	bcall(_VPutS)				; Draw small text
+	ld b, 1						; Height
+	ld c, 12					; Width
+	ld l, 7						; Y=7
+	ld a, 0						; X=0
 	push ix						; > IX holds our variable data
 		ld ix, long_bar_sprite	;  IX = sprite to draw
 		call ionLargeSprite		;  Draw the line underneath the title/score
@@ -142,12 +143,12 @@ main_loop:
 	call draw_laser_p1			; Draw laser sprite
 	ld a, (ix + p1_laser_y)		; This is the Y position of the ship when it was fired
 	add a, -(LASER_OFF + LASER_H)	; Find bottom of laser beam
-	cp (ix + p2_y)
-	 jr nc, $9eb1
+	cp (ix + p2_y)				; 
+	 jr nc, clear_laser1
 	ld a, (ix + p1_laser_y)
 	add a, 04
 	cp (ix + p2_y)
-	 jr c, $9eb1
+	 jr c, clear_laser1
 	call $9FA1
 clear_laser1:
 	ld a, -96					; Check if timer is 96
