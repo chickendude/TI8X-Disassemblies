@@ -1,6 +1,7 @@
 .nolist
 #include "ti83plus.inc"
 #include "ion.inc"
+#include "keys.inc"
 .list
 
 .db t2ByteTok, tasmCmp
@@ -10,6 +11,13 @@
 	ret
 	 jr nc, start
 	.db "Cannon War 1.0",0
+
+; Variables
+p1_y = 0
+p2_y = 1
+
+p1_hp = 6
+p2_hp = 7
 
 ; Program start
 start:
@@ -43,86 +51,94 @@ start:
 
 ; Set up variables
 	ld ix, saferamp
-	ld (ix + 00), $08
-	ld (ix + 01), $38
+	ld (ix + p1_y), 8	; Player1's starting Y position
+	ld (ix + p2_y), 56	; Player2's starting Y position
 	ld (ix + 02), $00
 	ld (ix + 03), $00
 	ld (ix + 04), $08
 	ld (ix + 05), $38
-	ld (ix + 06), 10 ; Player1 lives (starts at 10, but we dec 1 when displaying)
-	ld (ix + 07), 10 ; Player2 lives
+	ld (ix + p1_hp), 10 ; Player1 lives (starts at 10, but we dec 1 when displaying)
+	ld (ix + p2_hp), 10 ; Player2 lives
 
-	ld bc, $001D
-	ld (penCol), bc
-	ld hl, title_txt
-	bcall(_VPutS)
-	ld b, $01
-	ld c, $0C
-	ld l, $07
-	ld a, $00
+	ld bc, $001D		; y = 0, x = 29
+	ld (penCol), bc		; Store (pen/small) text coordinates
+	ld hl, title_txt	; Address of text to draw
+	bcall(_VPutS)		; Draw small text
+	ld b, 1				; Height
+	ld c, 12			; Width
+	ld l, 7				; Y=7
+	ld a, 0				; X=0
 	push ix
-		ld ix, $A06E
-		call $96C7
+		ld ix, long_bar_sprite
+		call ionLargeSprite	; Draw the line underneath the title/score
 	pop ix
 	call player1_hit		; Subtracts life from player and draws new value to screen
 	call player2_hit		; Same as above for player 2
+
+main_loop:
+; Check keys
 	call clear_key_port
-	ld        a, $BF
-	out       (01), a
-	in        a, (01)
-	bit       4, a
-	push      af
-	call      z, $9F21
-	pop       af
-	bit       5, a
-	push      af
-	call      z, $9F0D
-	pop       af
-	bit       0, a
-	push      af
-	call      z, $9F46
-	pop       af
+	ld a, Group1			; Group1: [Y=]->[Graph] and [2nd]/[Mode]/[Del]
+	out (01), a				; Set group of keys to read (port 01 = key port)
+	in a, (01)				; Read keys pressed in Group1 into a
+	bit 4, a				; [Y=]
+	push af					; > Save keys pressed
+		call z, $9F21		;   Player1 fire
+	pop af					; < Restore keys pressed back into a
+	bit 5, a				; [2nd]
+	push af
+		call z, $9F0D
+	pop af
+	bit 0, a				; [Graph]
+	push af
+		call z, $9F46		; Player2 fire
+	pop af
+
 	call clear_key_port
-	ld        a, $DF
-	out       (01), a
-	in        a, (01)
-	cp        $7F
-	push      af
-	call      z, $9F17
-	pop       af
+	ld a, Group2			; Group2 (contains alpha)
+	out (01), a
+	in a, (01)
+	cp dAlpha				; Check if [Alpha] was pressed
+	push af
+		call z, $9F17
+	pop af
+
 	call clear_key_port
-	ld        a, $FE
-	out       (01), a
-	in        a, (01)
-	cp        $FE
-	push      af
-	call      z, $9F3C
-	pop       af
-	cp        $F7
-	push      af
-	call      z, $9F32
-	pop       af
+	ld a, Group7			; Arrow keys
+	out (01), a
+	in a, (01)
+	cp dDown
+	push af
+		call z, $9F3C
+	pop af
+	cp dUp
+	push af
+		call z, $9F32
+	pop af
+
 	call clear_key_port
-	ld        a, $FD
-	out       (01), a
-	in        a, (01)
-	cp        $BF
-	jp        z, $A00C
-	call      $9FD9
-	call      $96CD
-	call      $9FD9
-	ld        a, $9C
-	add       a, (ix + 02)
-	jr        nz, $9eb1
-	call      $9F57
-	ld        a, (ix + 04)
-	add       a, $FB
-	cp        (ix + 01)
-	jr        nc, $9eb1
-	ld        a, (ix + 04)
-	add       a, 04
-	cp        (ix + 01)
-	jr        c, $9eb1
+	ld a, Group6			; Clear
+	out (01), a
+	in a, (01)
+	cp dClear
+	 jp z, $A00C			; Quit game if clear was pressed
+
+
+	call $9FD9
+	call $96CD
+	call $9FD9
+	ld a, $9C
+	add a, (ix + 02)
+	 jr nz, $9eb1
+	call $9F57
+	ld a, (ix + 04)
+	add a, $FB
+	cp (ix + p2_y)
+	 jr nc, $9eb1
+	ld a, (ix + 04)
+	add a, 04
+	cp (ix + p2_y)
+	 jr c, $9eb1
 	call      $9FA1
 label_9eb1:
 	ld        a, $A0
@@ -136,11 +152,11 @@ label_9ebb:
 	call      $9F6F
 	ld        a, (ix + 05)
 	add       a, $FB
-	cp        (ix + 00)
+	cp        (ix + p1_y)
 	jr        nc, +_
 	ld        a, (ix + 05)
 	add       a, 04
-	cp        (ix + 00)
+	cp        (ix + p1_y)
 	jr        c, +_
 	call      $9F87
 _:
@@ -160,49 +176,49 @@ _:
 	dec       (ix + 03)
 _:
 	ld        a, 00
-	add       a, (ix + 06)
+	add       a, (ix + p1_hp)
 	jp        z, $9FCA
 	ld        a, 00
-	add       a, (ix + 07)
-	jp        z, $9FBB
-	jp        $9E34
+	add       a, (ix + p2_hp)
+	 jp z, $9FBB
+	jp main_loop
 
 	ld        a, $F8
-	add       a, (ix + 00)
+	add       a, (ix + p1_y)
 	ret       z
-	dec       (ix + 00)
+	dec       (ix + p1_y)
 	ret
 
 	ld        a, $C8
-	add       a, (ix + 00)
+	add       a, (ix + p1_y)
 	ret       z
-	inc       (ix + 00)
+	inc       (ix + p1_y)
 	ret
 
 	ld        a, 00
 	add       a, (ix + 02)
 	 ret       nz
-	ld        a, (ix + 00)
+	ld        a, (ix + p1_y)
 	ld        (ix + 04), a
 	ld        (ix + 02), $64
 	ret
 
 	ld        a, $F8
-	add       a, (ix + 01)
+	add       a, (ix + p2_y)
 	ret       z
-	dec       (ix + 01)
+	dec       (ix + p2_y)
 	ret
 
 	ld        a, $C8
-	add       a, (ix + 01)
+	add       a, (ix + p2_y)
 	ret       z
-	inc       (ix + 01)
+	inc       (ix + p2_y)
 	ret
 
 	ld        a, 00
 	add       a, (ix + 03)
 	 ret       nz
-	ld        a, (ix + 01)
+	ld        a, (ix + p2_y)
 	ld        (ix + 05), a
 	ld        (ix + 03), $64
 	ret
@@ -231,10 +247,10 @@ _:
 	ret
 
 player1_hit:
-	dec (ix + 06)
+	dec (ix + p1_hp)
 	ld bc, $0000			; Top left coordinates 0, 0
 	ld (penCol), bc			; Set coordinates
-	ld a, (ix + 06)			; Player 1's  lives
+	ld a, (ix + p1_hp)			; Player 1's  lives
 	bcall(_SetXXOP1)
 	ld a, 02
 	push ix
@@ -243,10 +259,10 @@ player1_hit:
 	ret
 
 player2_hit:
-	dec       (ix + 07)
+	dec       (ix + p2_hp)
 	ld        bc, $005B
 	ld        (penCol), bc
-	ld        a, (ix + 07)
+	ld        a, (ix + p2_hp)
 	bcall(_SetXXOP1)
 	ld        a, 02
 	push ix
@@ -268,20 +284,23 @@ player2_hit:
 	ld        h, c
 	ld        b, l
 	jr        +_
-	ld        b, 08
-	ld        a, 00
-	ld        l, (ix + 00)
-	push      ix
-	ld        ix, $A048
-	call      $96C4
-	pop       ix
-	ld        b, $08
-	ld        a, $58
-	ld        l, (ix + 01)
-	push      ix
-	ld        ix, $A050
-	call      $96C4
-	pop       ix
+
+; Draw player1's ship
+	ld b, 08
+	ld a, 00
+	ld l, (ix + p1_y)
+	push ix
+		ld ix, player1_sprite
+		call ionPutSprite		; [ion.inc] ix = sprite, a = x, l = y, b = sprite height
+	pop ix
+; Draw player2's ship
+	ld b, $08
+	ld a, $58
+	ld l, (ix + p2_y)
+	push ix
+		ld ix, player2_sprite
+		call ionPutSprite
+	pop ix
 	ret
 
 ; delay
@@ -325,50 +344,44 @@ email1_txt:
 
 email2_txt:
 .db "hotmail.com", 0
-	ret       nz
-	ex        (sp), hl
-	jp        po, $FEFE
-	jp        po, $C0E3
-	inc       bc
-	rst       00h
-	ld        b, a
-	ld        a, a
-	ld        a, a
-	ld        b, a
-	rst       00h
-	inc       bc
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
-	rst       38h
+
+player1_sprite:
+	.db %11000000
+	.db %11100011
+	.db %11100010
+	.db %11111110
+	.db %11111110
+	.db %11100010
+	.db %11100011
+	.db %11000000
+
+player2_sprite:
+	.db %00000011
+	.db %11000111
+	.db %01000111
+	.db %01111111
+	.db %01111111
+	.db %01000111
+	.db %11000111
+	.db %00000011
+
+	.db %11111111, %11111111
+	.db %11111111, %11111111
+	.db %11111111, %11111111
+	.db %11111111, %11111111
+	.db %11111111, %11111111
+	.db %11111111, %11111111
+	.db %11111111, %11111111
+	.db %11111111, %11111111
+	.db %11111111, %11111111
+	.db %11111111, %11111111
+	.db %11111111, %11111111
+long_bar_sprite:
+	.db %11111111, %11111111
+	.db %11111111, %11111111
+	.db %11111111, %11111111
+	.db %11111111, %11111111
+	.db %11111111, %11111111
+	.db %11111111
 label_a079:
-	rst       38h
+	.db %11111111 ; rst       38h
