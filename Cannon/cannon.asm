@@ -12,10 +12,17 @@
 	 jr nc, start
 	.db "Cannon War 1.0",0
 
+; Equates
+LASER_OFF	equ 3				; Y offset of the laser from the top of the player's ship
+LASER_H		equ 2				; Height of the laser sprite
+
 ; Variables
 p1_y = 0
 p2_y = 1
-
+p1_timer = 2
+p2_timer = 3
+p1_laser_y = 4
+p2_laser_y = 5
 p1_hp = 6
 p2_hp = 7
 
@@ -53,10 +60,10 @@ start:
 	ld ix, saferamp
 	ld (ix + p1_y), 8	; Player1's starting Y position
 	ld (ix + p2_y), 56	; Player2's starting Y position
-	ld (ix + 02), $00	; Player1's laser timer
-	ld (ix + 03), $00	; Player2's laser timer
-	ld (ix + 04), $08	; Player1's laser Y position
-	ld (ix + 05), $38	; Player2's laser Y position
+	ld (ix + p1_timer), $00	; Player1's laser timer
+	ld (ix + p2_timer), $00	; Player2's laser timer
+	ld (ix + p1_laser_y), $08	; Player1's laser Y position
+	ld (ix + p2_laser_y), $38	; Player2's laser Y position
 	ld (ix + p1_hp), 10 ; Player1 lives (starts at 10, but we dec 1 when displaying)
 	ld (ix + p2_hp), 10 ; Player2 lives
 
@@ -68,12 +75,12 @@ start:
 	ld c, 12			; Width
 	ld l, 7				; Y=7
 	ld a, 0				; X=0
-	push ix
-		ld ix, long_bar_sprite
-		call ionLargeSprite	; Draw the line underneath the title/score
-	pop ix
-	call player1_hit		; Subtracts life from player and draws new value to screen
-	call player2_hit		; Same as above for player 2
+	push ix						; > IX holds our variable data
+		ld ix, long_bar_sprite	;  IX = sprite to draw
+		call ionLargeSprite		;  Draw the line underneath the title/score
+	pop ix						; < Restore variable data
+	call player1_hit			; Subtracts life from player and draws new value to screen
+	call player2_hit			; Same as above for player 2
 
 main_loop:
 ; Check keys
@@ -83,7 +90,7 @@ main_loop:
 	in a, (01)					; Read keys pressed in Group1 into a
 	bit dYEqu_bit, a			; [Y=]
 	push af						; > Save keys pressed
-		call z, fire_shot_p1	;   Player1 fire
+		call z, fire_shot_p1	;  Player1 fire
 	pop af						; < Restore keys pressed back into a
 	bit d2nd_bit, a				; [2nd]
 	push af
@@ -104,83 +111,85 @@ main_loop:
 	pop af
 
 	call clear_key_port
-	ld a, Group7			; Arrow keys
+	ld a, Group7				; Arrow keys
 	out (01), a
 	in a, (01)
-	cp dDown
-	push af
-		call z, $9F3C
-	pop af
-	cp dUp
-	push af
-		call z, $9F32
-	pop af
+	cp dDown					; Check if [Down] was pressed
+	push af						; 
+		call z, move_down_p2	; If so, move p2 down
+	pop af						;
+	cp dUp						; Check if [Up] was pressed
+	push af						;
+		call z, move_up_p2		; If so, move p2 up
+	pop af						;
 
 	call clear_key_port
-	ld a, Group6			; Clear
+	ld a, Group6				; Clear
 	out (01), a
 	in a, (01)
-	cp dClear
-	 jp z, $A00C			; Quit game if clear was pressed
+	cp dClear					; Check if [Clear] was pressed
+	 jp z, quit					; If so, quit game
 
-
-	call $9FD9
+; Update screen
+	call xor_ship_sprites		; Show sprites to screen
 	call $96CD
-	call $9FD9
-	ld a, $9C
-	add a, (ix + 02)
-	 jr nz, $9eb1
-	call $9F57
-	ld a, (ix + 04)
-	add a, $FB
+	call xor_ship_sprites		; Erase sprites from screen (XOR same values erases them)
+; Check if laser was fired
+	ld a, -100					; Check if timer = 100
+	add a, (ix + p1_timer)		; If timer = 100, a shot was fired
+	 jr nz, clear_laser1		; Skip if laser wasn't fired
+; Laser 1 was fired
+	call draw_laser_p1			; Draw laser sprite
+	ld a, (ix + p1_laser_y)		; This is the Y position of the ship when it was fired
+	add a, -(LASER_OFF + LASER_H)	; Find bottom of laser beam
 	cp (ix + p2_y)
 	 jr nc, $9eb1
-	ld a, (ix + 04)
+	ld a, (ix + p1_laser_y)
 	add a, 04
 	cp (ix + p2_y)
 	 jr c, $9eb1
-	call      $9FA1
-label_9eb1:
-	ld        a, $A0
-	add       a, (ix + 02)
-	jr        nz, $9ebb
-	call      $9F57
+	call $9FA1
+clear_laser1:
+	ld a, -96					; Check if timer is 96
+	add a, (ix + p1_timer)		; 
+	 jr nz, $9ebb				; 
+	call $9F57
 label_9ebb:
 	ld        a, $9C
-	add       a, (ix + 03)
+	add       a, (ix + p2_timer)
 	jr        nz, +_
 	call      $9F6F
-	ld        a, (ix + 05)
+	ld        a, (ix + p2_laser_y)
 	add       a, $FB
 	cp        (ix + p1_y)
 	jr        nc, +_
-	ld        a, (ix + 05)
+	ld        a, (ix + p2_laser_y)
 	add       a, 04
 	cp        (ix + p1_y)
 	jr        c, +_
 	call      $9F87
 _:
 	ld        a, $A0
-	add       a, (ix + 03)
+	add       a, (ix + p2_timer)
 	jr        nz, +_
 	call      $9F6F
 _:
 	ld        a, 00
-	add       a, (ix + 02)
+	add       a, (ix + p1_timer)
 	jr        z, +_
-	dec       (ix + 02)
+	dec       (ix + p1_timer)
 _:
 	ld        a, 00
-	add       a, (ix + 03)
+	add       a, (ix + p2_timer)
 	jr        z, +_
-	dec       (ix + 03)
+	dec       (ix + p2_timer)
 _:
 	ld        a, 00
 	add       a, (ix + p1_hp)
-	jp        z, $9FCA
+	jp        z, player2_wins
 	ld        a, 00
 	add       a, (ix + p2_hp)
-	 jp z, $9FBB
+	 jp z, player1_wins
 	jp main_loop
 
 move_up_p1:
@@ -199,11 +208,11 @@ move_down_p1:
 
 fire_shot_p1:
 	ld a, 0						; Check if counter is at 0
-	add a, (ix + 02)			; Set z flag if laser counter = 0
-	 ret nz						; Quit if the counter hasn't loaded yet
+	add a, (ix + p1_timer)		; Set z flag if laser counter = 0
+	 ret nz						; Quit if the timer hasn't reached 0
 	ld a, (ix + p1_y)			; A = player's Y position
-	ld (ix + 04), a				; Load laser at player's Y position
-	ld (ix + 02), 100			; Reset timer
+	ld (ix + p1_laser_y), a				; Load laser at player's Y position
+	ld (ix + p1_timer), 100		; Reset timer
 	ret
 
 ; Same as [move_up_p1] above
@@ -225,40 +234,44 @@ move_down_p2:
 ; Same as [fire_shot_p1] above
 fire_shot_p2:
 	ld a, 0
-	add a, (ix + 03)
+	add a, (ix + p2_timer)
 	 ret nz
 	ld a, (ix + p2_y)
-	ld (ix + 05), a
-	ld (ix + 03), 100
+	ld (ix + p2_laser_y), a
+	ld (ix + p2_timer), 100
 	ret
 
-	ld        b, $02
-	ld        c, $0B
-	ld        a, $03
-	add       a, (ix + 04)
-	ld        l, a
-	ld        a, $08
-	push      ix
-	ld        ix, $A058
-	call      $96C7
-	pop       ix
+draw_laser_p1:
+	ld b, LASER_H			; Height = 2
+	ld c, 11				; Width = 11 (88 pixels, so covers everything but P1's ship)
+	ld a, LASER_OFF			; Add offset to the Y position so that it is drawn in the
+	add a, (ix + p1_laser_y)	; .. center of the ship sprite
+	ld l, a					; Y position
+	ld a, 8					; X position
+	push ix					; > Save IX (variable pointer)
+		ld ix, laser_sprite	;  Sprite to draw
+		call $96C7			;  ionLargeSprite
+	pop ix					; < Restore IX
 	ret
-	ld        b, $02
-	ld        c, $0B
-	ld        a, $03
-	add       a, (ix + 05)
-	ld        l, a
-	ld        a, 00
-	push      ix
-	ld        ix, $A058
-	call      $96C7
-	pop       ix
+
+; Mostly the same as [draw_laser_p1] above
+draw_laser_p2:
+	ld b, LASER_H
+	ld c, 11
+	ld a, 3
+	add a, (ix + p2_laser_y)
+	ld l, a
+	ld a, 0					; Drawn from the left, so this draws over P1's sprite
+	push ix
+		ld ix, $A058
+		call $96C7			; ionLargeSprite
+	pop ix
 	ret
 
 player1_hit:
 	dec (ix + p1_hp)
-	ld bc, $0000			; Top left coordinates 0, 0
-	ld (penCol), bc			; Set coordinates
+	ld bc, $0000				; Top left coordinates 0, 0
+	ld (penCol), bc				; Set coordinates
 	ld a, (ix + p1_hp)			; Player 1's  lives
 	bcall(_SetXXOP1)
 	ld a, 02
@@ -279,21 +292,21 @@ player2_hit:
 	pop ix
 	ret
 
-	ld        bc, $0005
-	ld        (penCol), bc
-	ld        hl, $A025
-	rst       28h				; bcall
-	ld        h, c
-	ld        b, l
-	jr        +_
-	ld        bc, $0042
-	ld        (penCol), bc
-	ld        hl, $A02C
-	rst       28h				; bcall
-	ld        h, c
-	ld        b, l
-	jr        +_
+player1_wins:
+	ld bc, $0005			; X = 5, Y = 0
+	ld (penCol), bc			; [penRow] follows [penCol] in memory
+	ld hl, winner1_txt
+	bcall(_VPutS)
+	jr quit
 
+player2_wins:
+	ld bc, $0042
+	ld (penCol), bc
+	ld hl, winner2_txt
+	bcall(_VPutS)
+	jr quit
+
+xor_ship_sprites:
 ; Draw player1's ship
 	ld b, 08
 	ld a, 00
@@ -328,15 +341,13 @@ clear_key_port:
 	out       (01), a
 	ret
 
-_:
-	call      $9FD9
+quit:
+	call      xor_ship_sprites
 	call      $96CD
-_:
-	rst       28h				; bcall
-	ld        (hl), d
-	ld        c, c
-	cp        09
-	jr        nz, -_
+exit_clear_loop:
+	bcall(_getkey)
+	cp kClear					; Check if [Clear] was pressed (GetKey key code)
+	 jr nz, exit_clear_loop
 	ret
 
 title_txt:
@@ -374,6 +385,7 @@ player2_sprite:
 	.db %11000111
 	.db %00000011
 
+laser_sprite:
 	.db %11111111, %11111111
 	.db %11111111, %11111111
 	.db %11111111, %11111111
