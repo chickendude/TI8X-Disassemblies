@@ -15,7 +15,7 @@ STATUS=0
 if [ $STATUS -gt "0" ]; then
     echo "The check came back with an error, exiting."
     echo "Status: $STATUS"
-    exit
+    exit $STATUS
 else
     echo "All checks fine, assemble and emulate!"
 fi
