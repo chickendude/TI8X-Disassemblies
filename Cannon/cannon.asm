@@ -53,10 +53,10 @@ start:
 	ld ix, saferamp
 	ld (ix + p1_y), 8	; Player1's starting Y position
 	ld (ix + p2_y), 56	; Player2's starting Y position
-	ld (ix + 02), $00
-	ld (ix + 03), $00
-	ld (ix + 04), $08
-	ld (ix + 05), $38
+	ld (ix + 02), $00	; Player1's laser timer
+	ld (ix + 03), $00	; Player2's laser timer
+	ld (ix + 04), $08	; Player1's laser Y position
+	ld (ix + 05), $38	; Player2's laser Y position
 	ld (ix + p1_hp), 10 ; Player1 lives (starts at 10, but we dec 1 when displaying)
 	ld (ix + p2_hp), 10 ; Player2 lives
 
@@ -78,29 +78,29 @@ start:
 main_loop:
 ; Check keys
 	call clear_key_port
-	ld a, Group1			; Group1: [Y=]->[Graph] and [2nd]/[Mode]/[Del]
-	out (01), a				; Set group of keys to read (port 01 = key port)
-	in a, (01)				; Read keys pressed in Group1 into a
-	bit 4, a				; [Y=]
-	push af					; > Save keys pressed
-		call z, $9F21		;   Player1 fire
-	pop af					; < Restore keys pressed back into a
-	bit 5, a				; [2nd]
+	ld a, Group1				; Group1: [Y=]->[Graph] and [2nd]/[Mode]/[Del]
+	out (01), a					; Set group of keys to read (port 01 = key port)
+	in a, (01)					; Read keys pressed in Group1 into a
+	bit dYEqu_bit, a			; [Y=]
+	push af						; > Save keys pressed
+		call z, fire_shot_p1	;   Player1 fire
+	pop af						; < Restore keys pressed back into a
+	bit d2nd_bit, a				; [2nd]
 	push af
-		call z, $9F0D
+		call z, move_up_p1
 	pop af
-	bit 0, a				; [Graph]
+	bit 0, a					; [Graph]
 	push af
-		call z, $9F46		; Player2 fire
+		call z, fire_shot_p2	; Player2 fire
 	pop af
 
 	call clear_key_port
-	ld a, Group2			; Group2 (contains alpha)
+	ld a, Group2				; Group2 (contains alpha)
 	out (01), a
 	in a, (01)
-	cp dAlpha				; Check if [Alpha] was pressed
+	cp dAlpha					; Check if [Alpha] was pressed
 	push af
-		call z, $9F17
+		call z, move_down_p1
 	pop af
 
 	call clear_key_port
@@ -183,44 +183,53 @@ _:
 	 jp z, $9FBB
 	jp main_loop
 
-	ld        a, $F8
-	add       a, (ix + p1_y)
-	ret       z
-	dec       (ix + p1_y)
+move_up_p1:
+	ld a, -8					; Check if player is at top of screen
+	add a, (ix + p1_y)			; If Y = 8, literally: -8 + Y
+	 ret z						; Quit if Y = 8
+	dec (ix + p1_y)				; Otherwise, move player up one pixel
 	ret
 
-	ld        a, $C8
-	add       a, (ix + p1_y)
-	ret       z
-	inc       (ix + p1_y)
+move_down_p1:
+	ld a, -56					; Lowest Y position for player is 56 (sprite is 8 pixels)
+	add a, (ix + p1_y)			; -56 + Y will set z flag if Y = 56
+	 ret z						; Quit if Y = 56
+	inc (ix + p1_y)				; Otherwise, move player down one pixel
 	ret
 
-	ld        a, 00
-	add       a, (ix + 02)
-	 ret       nz
-	ld        a, (ix + p1_y)
-	ld        (ix + 04), a
-	ld        (ix + 02), $64
+fire_shot_p1:
+	ld a, 0						; Check if counter is at 0
+	add a, (ix + 02)			; Set z flag if laser counter = 0
+	 ret nz						; Quit if the counter hasn't loaded yet
+	ld a, (ix + p1_y)			; A = player's Y position
+	ld (ix + 04), a				; Load laser at player's Y position
+	ld (ix + 02), 100			; Reset timer
 	ret
 
-	ld        a, $F8
-	add       a, (ix + p2_y)
-	ret       z
-	dec       (ix + p2_y)
+; Same as [move_up_p1] above
+move_up_p2:
+	ld a, -8
+	add a, (ix + p2_y)
+	 ret z
+	dec (ix + p2_y)
 	ret
 
-	ld        a, $C8
-	add       a, (ix + p2_y)
-	ret       z
-	inc       (ix + p2_y)
+; Same as [move_down_p1] above
+move_down_p2:
+	ld a, -56
+	add a, (ix + p2_y)
+	 ret z
+	inc (ix + p2_y)
 	ret
 
-	ld        a, 00
-	add       a, (ix + 03)
-	 ret       nz
-	ld        a, (ix + p2_y)
-	ld        (ix + 05), a
-	ld        (ix + 03), $64
+; Same as [fire_shot_p1] above
+fire_shot_p2:
+	ld a, 0
+	add a, (ix + 03)
+	 ret nz
+	ld a, (ix + p2_y)
+	ld (ix + 05), a
+	ld (ix + 03), 100
 	ret
 
 	ld        b, $02

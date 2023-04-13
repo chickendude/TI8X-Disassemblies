@@ -1,5 +1,7 @@
 ; Direct input groups
 Group1 equ %10111111 ; $BF
+dYEqu_bit	equ 4
+d2nd_bit	equ 5
 
 Group2 equ %11011111 ; $DF
 dMath  equ %10111111
