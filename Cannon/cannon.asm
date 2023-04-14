@@ -164,25 +164,32 @@ clear_laser1:
 	add a, (ix + p1_timer)		; 
 	 jr nz, laser2_collision	; 
 	call draw_laser_p1			; Erase the sprite
+
+; Same basic behavior as above
 laser2_collision:
-	ld        a, $9C
+	ld a, -100
+	add a, (ix + p2_timer)
+	 jr nz, clear_laser2
+; Laser 2 was fired
+	call draw_laser_p2
+; Check collision with player 1 (ship bottom should be below laser,
+;								 ship top should be above laser)
+; If bottom of player 1 is above laser Y, no collision
+	ld a, (ix + p2_laser_y)
+	add a, LASER_OFF - 8
+	cp (ix + p1_y)
+	 jr nc, clear_laser2
+; If top of player 1 is below laser Y, no collision
+	ld a, (ix + p2_laser_y)
+	add a, LASER_OFF + 1
+	cp (ix + p1_y)
+	 jr c, clear_laser2
+	call player1_hit
+clear_laser2:
+	ld        a, -96
 	add       a, (ix + p2_timer)
 	jr        nz, +_
-	call      $9F6F
-	ld        a, (ix + p2_laser_y)
-	add       a, $FB
-	cp        (ix + p1_y)
-	jr        nc, +_
-	ld        a, (ix + p2_laser_y)
-	add       a, 04
-	cp        (ix + p1_y)
-	jr        c, +_
-	call      $9F87
-_:
-	ld        a, $A0
-	add       a, (ix + p2_timer)
-	jr        nz, +_
-	call      $9F6F
+	call      draw_laser_p2
 _:
 	ld        a, 00
 	add       a, (ix + p1_timer)
