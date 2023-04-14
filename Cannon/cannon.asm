@@ -141,21 +141,30 @@ main_loop:
 	 jr nz, clear_laser1		; Skip if laser wasn't fired
 ; Laser 1 was fired
 	call draw_laser_p1			; Draw laser sprite
+; Check collision with player 2:
+; = top of laser - 8 < shipY < bottom of laser
+; If ship's Y coordinate is between (laser - 8) and (laser + 1), then it was a hit.
+; Subtracting 8 from the top of the laser is the same as adding 8 to the ship's
+; coordinates, so there are two equations here:
+; 1. ship Y + 8 > laser Y 		;; Bottom of the ship must be > top of the laser
+; 2. ship Y 	< laser Y + 1	;; Top of the ship must be < bottom of the laser
 	ld a, (ix + p1_laser_y)		; This is the Y position of the ship when it was fired
-	add a, -(LASER_OFF + LASER_H)	; Find bottom of laser beam
-	cp (ix + p2_y)				; 
-	 jr nc, clear_laser1
-	ld a, (ix + p1_laser_y)
-	add a, 04
-	cp (ix + p2_y)
-	 jr c, clear_laser1
-	call $9FA1
+	add a, -(8 - LASER_OFF)		; Find bottom of laser beam and move up 8 pixels
+	cp (ix + p2_y)				; If ship2 Y <= (laser Y - 8), aka (shipY + 8) <= laserY
+	 jr nc, clear_laser1		; .. if so, bottom of the ship is above the laser, so
+								; .. no collision is possible
+	ld a, (ix + p1_laser_y)		; Reload unoffset laser Y
+	add a, LASER_OFF + 1		; Find bottom of laser (laser is two pixels tall)
+	cp (ix + p2_y)				; Check if ship2 Y > laser bottom
+	 jr c, clear_laser1			; .. if so, the top of the ship is below the laser, so
+								; .. no collision is possible
+	call player2_hit			; Player was hit
 clear_laser1:
 	ld a, -96					; Check if timer is 96
 	add a, (ix + p1_timer)		; 
-	 jr nz, $9ebb				; 
-	call $9F57
-label_9ebb:
+	 jr nz, laser2_collision	; 
+	call draw_laser_p1			; Erase the sprite
+laser2_collision:
 	ld        a, $9C
 	add       a, (ix + p2_timer)
 	jr        nz, +_
