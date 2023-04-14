@@ -149,7 +149,7 @@ main_loop:
 ; 1. ship Y + 8 > laser Y 		;; Bottom of the ship must be > top of the laser
 ; 2. ship Y 	< laser Y + 1	;; Top of the ship must be < bottom of the laser
 	ld a, (ix + p1_laser_y)		; This is the Y position of the ship when it was fired
-	add a, -(8 - LASER_OFF)		; Find bottom of laser beam and move up 8 pixels
+	add a, LASER_OFF - 8		; Find bottom of laser beam and move up 8 pixels
 	cp (ix + p2_y)				; If ship2 Y <= (laser Y - 8), aka (shipY + 8) <= laserY
 	 jr nc, clear_laser1		; .. if so, bottom of the ship is above the laser, so
 								; .. no collision is possible
